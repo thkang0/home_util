@@ -9,16 +9,16 @@ import telepot
 #  python -m pip install BeautifulSoup4
 # python3 -m pip install telepot
 
-bot = telepot.Bot('175881767:AAG6nfgAprdHkTjbK6JZdZdsE76cbu5kMhE')
+bot = telepot.Bot('your bot key')
 
-my_chat_id = 62233150
+my_chat_id = 'your chat id'
 startMsg="Clien Monitor 서비스가 시작되었습니다."
-
-#curl "https://api.telegram.org/bot199048259:AAGtyE1_vvXFMEPQ24a3-qf8s4ifqPpP85U/sendMessage?chat_id=62233150&text=$startMsg"
 
 bot.sendMessage(my_chat_id, startMsg)
 
+# 장터
 base_url = "http://www.clien.net/cs2/bbs/board.php?bo_table=sold"
+# 모두의 공원
 #base_url = "http://www.clien.net/cs2/bbs/board.php?bo_table=park"
 
 url_request = Request(base_url,headers={'User-Agent': 'Mozilla/5.0'})
@@ -31,9 +31,7 @@ find_mytr = bs4_clien.find_all("tr",attrs={'class':"mytr"})
 
 base_id = int(find_mytr[0].find('td').get_text(strip=True))
 
-base_id = 1225313
-
-your_searchs = ["맥북", "에어", "레티나", "스마트"]
+your_searchs = ["맥북", "레티나"]
 
 while True:
     print("Read Clien board %s" % base_id)
