@@ -3,17 +3,27 @@ from urllib.request import Request,urlopen
 from urllib.parse import urljoin
 import time
 import telepot
+import ConfigParser
+import io
+
+config = ConfigParser.ConfigParser()
+config.read("./config")
 
 # download pip
 # wget https://bootstrap.pypa.io/get-pip.py --no-check-certificate
 #  python -m pip install BeautifulSoup4
 # python3 -m pip install telepot
 
-bot = telepot.Bot('your bot key')
 
-my_chat_id = 'your chat id'
+#my_chat_id = 'your chat id'
+
+
+my_chat_id = config.get('CHAT_ID')
+TOKEN = config.get('TOKEN')
+
+bot = telepot.Bot(TOKEN)
+
 startMsg="Clien Monitor 서비스가 시작되었습니다."
-
 bot.sendMessage(my_chat_id, startMsg)
 
 # 장터
