@@ -41,7 +41,8 @@ while True:
     find_mytr = bs4_clien.find_all("tr",attrs={'class':"mytr"})
 
     #print(find_mytr[0].find('td').get_text(strip=True))
-
+    top_id = int(find_mytr[0].find('td').get_text(strip=True))
+    
     for t in find_mytr:
         #print(t.find('wr_id').get_text(strip=True))
         current_id = int(t.find('td').get_text(strip=True))
@@ -64,6 +65,6 @@ while True:
                     bot.sendMessage(my_chat_id, result)
                     break
         elif current_id == base_id:
-            base_id = current_id
+            base_id = top_id
 
     time.sleep(60)
