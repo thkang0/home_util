@@ -18,8 +18,8 @@ config.read("../config")
 #my_chat_id = 'your chat id'
 
 
-my_chat_id = config.get('CHAT_ID')
-TOKEN = config.get('TOKEN')
+my_chat_id = config.get("my_config", "CHAT_ID")
+TOKEN = config.get("my_config", "TOKEN")
 
 bot = telepot.Bot(TOKEN)
 
