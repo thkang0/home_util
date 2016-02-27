@@ -7,7 +7,7 @@ import ConfigParser
 import io
 
 config = ConfigParser.ConfigParser()
-config.read("./config")
+config.read("../config")
 
 # download pip
 # wget https://bootstrap.pypa.io/get-pip.py --no-check-certificate
