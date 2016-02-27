@@ -6,8 +6,8 @@ import telepot
 import ConfigParser
 import io
 
-config = ConfigParser.ConfigParser()
-config.read("../config")
+#config = ConfigParser.ConfigParser()
+#config.read("../config")
 
 # download pip
 # wget https://bootstrap.pypa.io/get-pip.py --no-check-certificate
@@ -15,11 +15,11 @@ config.read("../config")
 # python3 -m pip install telepot
 
 
-#my_chat_id = 'your chat id'
+my_chat_id = 62233150
+TOKEN = '175881767:AAG6nfgAprdHkTjbK6JZdZdsE76cbu5kMhE'
 
-
-my_chat_id = config.get("my_config", "CHAT_ID")
-TOKEN = config.get("my_config", "TOKEN")
+#my_chat_id = config.get("my_config", "CHAT_ID")
+#TOKEN = config.get("my_config", "TOKEN")
 
 bot = telepot.Bot(TOKEN)
 
