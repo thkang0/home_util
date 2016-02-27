@@ -3,8 +3,8 @@ from urllib.request import Request,urlopen
 from urllib.parse import urljoin
 import time
 import telepot
-import ConfigParser
-import io
+#import ConfigParser
+#import io
 
 #config = ConfigParser.ConfigParser()
 #config.read("../config")
