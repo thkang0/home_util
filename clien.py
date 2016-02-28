@@ -6,10 +6,8 @@ import time
 import telepot
 import json
 import sys
+import codecs
 
-
-#config = ConfigParser.ConfigParser()
-#config.read("../config")
 
 # download pip
 # wget https://bootstrap.pypa.io/get-pip.py --no-check-certificate
@@ -17,10 +15,10 @@ import sys
 # python3 -m pip install telepot
 # python3 -m pip install feedparser
 
-CONFIG_FILE = '../setting.json'
+CONFIG_FILE = 'setting.json'
 
 def parseConfig(filename):
-    f = open(filename, 'r')
+    f = codecs.open(filename, 'r', "utf-8" )
     js = json.loads(f.read())
     f.close()
     return js
@@ -36,6 +34,7 @@ def getConfig(config):
     SEARCH_KEYWORDS = config['search_keywords']
 
 config = parseConfig(CONFIG_FILE)
+print(config)
 
 if not bool(config):
     print ("Err: Setting file is not found")
@@ -117,6 +116,7 @@ while True:
         current_id = int(t.find('td').get_text(strip=True))
         category = t.find('td',attrs={'class':'post_category'}).get_text(strip=True)
         item = t.find('td',attrs={'class':'post_subject'}).get_text(strip=True).encode('cp949','ignore').decode('cp949')
+        print(item)
 
 #        print(current_id, base_id, category, your_search, item)
         if current_id > base_id and category == "[판매]":

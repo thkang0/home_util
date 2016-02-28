@@ -6,6 +6,7 @@ import telepot
 from telepot.delegate import per_chat_id, create_open
 import json
 import feedparser
+import codecs
 
 
 # download pip
@@ -120,10 +121,10 @@ class ClienHelper(telepot.helper.ChatHandler):
 #my_chat_id = 62233150
 #TOKEN = '175881767:AAG6nfgAprdHkTjbK6JZdZdsE76cbu5kMhE'
 
-CONFIG_FILE = '../setting.json'
+CONFIG_FILE = 'setting.json'
 
 def parseConfig(filename):
-    f = open(filename, 'r')
+    f = codecs.open(filename, 'r', "utf-8" )
     js = json.loads(f.read())
     f.close()
     return js
@@ -142,7 +143,7 @@ if not bool(config):
 
 getConfig(config)
 
-TOKEN = '199048259:AAGtyE1_vvXFMEPQ24a3-qf8s4ifqPpP85U'
+#TOKEN = '199048259:AAGtyE1_vvXFMEPQ24a3-qf8s4ifqPpP85U'
 bot = telepot.DelegatorBot(TOKEN, [
     (per_chat_id(), create_open(ClienHelper, timeout=120)),
 ])
