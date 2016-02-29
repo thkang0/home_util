@@ -34,13 +34,13 @@ def getConfig(config):
     SEARCH_KEYWORDS = config['search_keywords']
 
 config = parseConfig(CONFIG_FILE)
-print(config)
 
 if not bool(config):
     print ("Err: Setting file is not found")
     exit()
 
 getConfig(config)
+print(config)
 
 bot = telepot.Bot(TOKEN)
 
@@ -116,10 +116,10 @@ while True:
         current_id = int(t.find('td').get_text(strip=True))
         category = t.find('td',attrs={'class':'post_category'}).get_text(strip=True)
         item = t.find('td',attrs={'class':'post_subject'}).get_text(strip=True).encode('cp949','ignore').decode('cp949')
-        print(item)
 
 #        print(current_id, base_id, category, your_search, item)
         if current_id > base_id and category == "[판매]":
+            #print("base: %s, top : %s, current : %s" % (base_id, top_id, current_id))
             for your_search in SEARCH_KEYWORDS:
                 #print(your_search)
                 if your_search in item:
@@ -133,7 +133,7 @@ while True:
             #        print("글쓴이 : "+t.find('td',attrs={'class' : 'post_name'}).get_text(strip=True))
                     bot.sendMessage(my_chat_id, result)
                     break
-        elif current_id == base_id:
-            base_id = top_id
 
+    #print(base_id, top_id, current_id)
+    base_id = top_id
     time.sleep(30)
