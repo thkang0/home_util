@@ -71,10 +71,8 @@ for x in range(10): # Always limit number of retries
         clien_market_board = urlopen(url_request).read()
     #    resp = urllib.request.urlopen(req)
     except URLError:
-        if e.reason[0] == 104: # Will throw TypeError if error is local, but we probably don't care
-            time.sleep(2)
-        else:
-            raise # re-raise any other error
+        time.sleep(2)
+        raise # re-raise any other error
     else:
         break # We've got resp sucessfully, stop iteration
 
@@ -91,25 +89,26 @@ while True:
     #print("Read Clien board %s" % base_id)
     #clien_market_board = urlopen(url_request).read()
 
-    for x in range(10): # Always limit number of retries
+    while True:
         try:
             clien_market_board = urlopen(url_request).read()
+            break;
         #    resp = urllib.request.urlopen(req)
         except URLError:
-            if e.reason[0] == 104: # Will throw TypeError if error is local, but we probably don't care
-                time.sleep(2)
-            else:
-                raise # re-raise any other error
-                bot.sendMessage(my_chat_id, "URL Open Error and now retrying")
-        else:
-            break # We've got resp sucessfully, stop iteration
+            time.sleep(10)
+            print("URL Open Error and now retrying")
+            #bot.sendMessage(my_chat_id, "URL Open Error and now retrying")
+            pass
 
-
-    bs4_clien = BeautifulSoup(clien_market_board,"html.parser")
-    find_mytr = bs4_clien.find_all("tr",attrs={'class':"mytr"})
+    try:
+        bs4_clien = BeautifulSoup(clien_market_board,"html.parser")
+        find_mytr = bs4_clien.find_all("tr",attrs={'class':"mytr"})
 
     #print(find_mytr[0].find('td').get_text(strip=True))
-    top_id = int(find_mytr[0].find('td').get_text(strip=True))
+        top_id = int(find_mytr[0].find('td').get_text(strip=True))
+    except:
+        print("top_id = %s" % top_id)
+        pass
 
     for t in find_mytr:
         #print(t.find('wr_id').get_text(strip=True))
@@ -136,4 +135,4 @@ while True:
 
     #print(base_id, top_id, current_id)
     base_id = top_id
-    time.sleep(30)
+    time.sleep(60)

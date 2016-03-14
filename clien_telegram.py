@@ -20,20 +20,26 @@ class ClienHelper(telepot.helper.ChatHandler):
     NO = '2. NO'
     MENU0 = '홈으로'
     MENU1 = '1. 클리앙 장터 모니터링 검색어'
+    MENU1_1 = '모니터링 키워드'
     MENU2 = '2. 모니터링 시작'
+    MENU3 = '3. 모니터링 정지'
     #base_url = "http://www.clien.net/cs2/bbs/board.php?bo_table=sold"
-    your_searchs = []
+    your_searches = []
     monitoring_status = False
     navi = feedparser.FeedParserDict()
+    GREETING = "안녕하세요. 메뉴를 선택해주세요."
+    mode = ''
 
     def __init__(self, seed_tuple, timeout):
         print("Init..")
-        super(ClienHelper, self).__init__(seed_tuple, timeout)\
+        super(ClienHelper, self).__init__(seed_tuple, timeout)
 
         #self.sender.sendMessage('
 
+    def open(self, initial_msg, seed):
+        self.menu()
+
     def menu(self):
-        monitoring_status =''
         show_keyboard = {'keyboard': [[self.MENU1], [self.MENU2], [self.MENU0]]}
         self.sender.sendMessage(self.GREETING, reply_markup=show_keyboard)
 
@@ -41,9 +47,16 @@ class ClienHelper(telepot.helper.ChatHandler):
         show_keyboard = {'keyboard': [[self.YES, self.NO], [self.MENU0]]}
         self.sender.sendMessage(comment, reply_markup=show_keyboard)
 
-    def set_search_keyword(self):
+    def get_search_keyword(self):
         self.mode = self.MENU1_1
         self.sender.sendMessage('모니터링 키워드를 입력하세요.')
+
+    def set_search_keyword(self, keyword):
+        self.your_searches.append(keyword)
+        # need to put keywords into mysql db
+        self.monitoring_status = True
+        self.sender.sendMessage('현재 모니터링중인 항목은 ')
+        self.sender.sendMessage(self.your_searches)
 
     def put_menu_button(self, l):
         menulist = [self.MENU0]
@@ -54,74 +67,102 @@ class ClienHelper(telepot.helper.ChatHandler):
         if command == self.MENU0:
             self.menu()
         elif command == self.MENU1:
-            self.set_search_keyword()
+            self.get_search_keyword()
+        elif command == self.MENU2:
+            self.marketMonitor()
+        elif command == self.MENU3:
+            self.stop_marketMonitor()
+        elif self.mode == self.MENU1_1:
+            self.set_search_keyword(command)
 
     def on_message(self, msg):
-        print("on message")
         content_type, chat_type, chat_id = telepot.glance2(msg)
-        if content_type is 'text':
-            self.handle_command(unicode(msg['text']))
+
+        if not chat_id in VALID_USERS:
+            print("Permission Denied")
             return
 
-    def marketMonitor():
+        if content_type is 'text':
+            print(content_type, msg['text'])
+            #self.handle_command(unicode(msg['text']))
+            self.handle_command(str(msg['text']))
+            return
+    
+    def stopmarketMonitor(self):
+        self.monitoring_status = False
+        self.sender.sendMessage('모니터링을 정지합니다.')
+        self.mode = ''
+        return
+
+    def marketMonitor(self):
+        if self.your_searches is None:
+            self.sender.sendMessage('현재 모니터링 항목이 없습니다.')
+            return
+
+        if self.monitoring_status is False:
+            return
+
+        self.sender.sendMessage('모니터링을 시작합니다.')
+        self.mode = 'self.MENU2'
         base_url = "http://www.clien.net/cs2/bbs/board.php?bo_table=sold"
-        #base_url = "http://www.clien.net/cs2/bbs/board.php?bo_table=park"
 
         url_request = Request(base_url,headers={'User-Agent': 'Mozilla/5.0'})
 
-        clien_tip_board = urlopen(url_request).read()
+        for x in range(10): # Always limit number of retries
+            try:
+                clien_market_board = urlopen(url_request).read()
+            except URLError:
+                time.sleep(2)
+                raise # re-raise any other error
+            else:
+                break 
 
-        bs4_clien = BeautifulSoup(clien_tip_board,"html.parser")
+        bs4_clien = BeautifulSoup(clien_market_board,"html.parser")
         find_mytr = bs4_clien.find_all("tr",attrs={'class':"mytr"})
 
         base_id = int(find_mytr[0].find('td').get_text(strip=True))
 
-        #base_id = 1225523
+        while self.monitoring_status is True:
+            while True:
+                try:
+                    clien_market_board = urlopen(url_request).read()
+                    break;
+                except URLError:
+                    time.sleep(10)
+                    print("URL Open Error and now retrying")
+                    #bot.sendMessage(my_chat_id, "URL Open Error and now retrying")
+                    pass
 
-        #your_searchs = ["맥북", "에어", "레티나", "스마트"]
-        self.your_searchs = ["에어", "맥북", "레티나", "스마트"]
+            try:
+                bs4_clien = BeautifulSoup(clien_market_board,"html.parser")
+                find_mytr = bs4_clien.find_all("tr",attrs={'class':"mytr"})
 
-        while True:
-            print("Read Clien board %s" % base_id)
-            clien_tip_board = urlopen(url_request).read()
-
-            bs4_clien = BeautifulSoup(clien_tip_board,"html.parser")
-            find_mytr = bs4_clien.find_all("tr",attrs={'class':"mytr"})
-
-            #print(find_mytr[0].find('td').get_text(strip=True))
-            top_id = int(find_mytr[0].find('td').get_text(strip=True))
+                top_id = int(find_mytr[0].find('td').get_text(strip=True))
+            except:
+                print("top_id = %s" % top_id)
+                pass
 
             for t in find_mytr:
-                #print(t.find('wr_id').get_text(strip=True))
                 current_id = int(t.find('td').get_text(strip=True))
                 category = t.find('td',attrs={'class':'post_category'}).get_text(strip=True)
                 item = t.find('td',attrs={'class':'post_subject'}).get_text(strip=True).encode('cp949','ignore').decode('cp949')
 
-        #        print(current_id, base_id, category, your_search, item)
                 if current_id > base_id and category == "[판매]":
-                    for your_search in self.your_searchs:
-                        #print(your_search)
+                    for your_search in self.your_searches:
                         if your_search in item:
-                            #print(t)
-                            #print(t.find('td',attrs={'class':'post_category'}).get_text(strip=True))
-                            print("제목 : "+t.find('td',attrs={'class':'post_subject'}).get_text(strip=True).encode('cp949','ignore').decode('cp949'))
                             title = "제목 : "+t.find('td',attrs={'class':'post_subject'}).get_text(strip=True).encode('cp949','ignore').decode('cp949')+"\n"
-                            print("url : "+urljoin(base_url,t.find('td',attrs={'post_subject'}).a.get('href')))
                             url_result = urljoin(base_url,t.find('td',attrs={'post_subject'}).a.get('href'))
                             result = title + url_result
-                    #        print("글쓴이 : "+t.find('td',attrs={'class' : 'post_name'}).get_text(strip=True))
-                            bot.sendMessage(my_chat_id, result)
+                            self.sender.sendMessage(result)
                             break
-                elif current_id == base_id:
-                    base_id = top_id
-                    #print("base id is %s %s" % (base_id, top_id))
 
+            base_id = top_id
             time.sleep(60)
 
 #my_chat_id = 62233150
 #TOKEN = '175881767:AAG6nfgAprdHkTjbK6JZdZdsE76cbu5kMhE'
 
-CONFIG_FILE = 'setting.json'
+CONFIG_FILE = 'setting2.json'
 
 def parseConfig(filename):
     f = codecs.open(filename, 'r', "utf-8" )
