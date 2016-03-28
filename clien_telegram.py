@@ -7,7 +7,7 @@ from telepot.delegate import per_chat_id, create_open
 import json
 import feedparser
 import codecs
-
+import MySQLdb
 
 # download pip
 # wget https://bootstrap.pypa.io/get-pip.py --no-check-certificate
@@ -34,7 +34,6 @@ class ClienHelper(telepot.helper.ChatHandler):
         print("Init..")
         super(ClienHelper, self).__init__(seed_tuple, timeout)
 
-        #self.sender.sendMessage('
 
     def open(self, initial_msg, seed):
         self.menu()
@@ -51,19 +50,34 @@ class ClienHelper(telepot.helper.ChatHandler):
         self.mode = self.MENU1_1
         self.sender.sendMessage('모니터링 키워드를 입력하세요.')
 
-    def set_search_keyword(self, keyword):
-        self.your_searches.append(keyword)
+    def set_search_keyword(self, keyword, chat_id):
+        #self.your_searches.append(keyword)
         # need to put keywords into mysql db
+        db = MySQLdb.connect("127.0.0.1","root","root","clien_market")
+        cursor = db.cursor()
+
+        sql = "INSERT INTO keywords(chat_id,keyword) VALUES(%s, '%s')" % (chat_id,  keyword)
+        cursor.execute(sql)
+        # handle exception of duplicate data
+
+        db.commit()
+
         self.monitoring_status = True
+        select_sql = "SELECT * FROM clien_market.keywords where chat_id = %d" % chat_id
+        cursor.execute(select_sql)
+        result = cursor.fetchall()
+        print(result)
         self.sender.sendMessage('현재 모니터링중인 항목은 ')
-        self.sender.sendMessage(self.your_searches)
+        self.sender.sendMessage(result)
+
+        db.close()
 
     def put_menu_button(self, l):
         menulist = [self.MENU0]
         l.append(menulist)
         return l
 
-    def handle_command(self, command):
+    def handle_command(self, command, chat_id):
         if command == self.MENU0:
             self.menu()
         elif command == self.MENU1:
@@ -73,7 +87,7 @@ class ClienHelper(telepot.helper.ChatHandler):
         elif command == self.MENU3:
             self.stop_marketMonitor()
         elif self.mode == self.MENU1_1:
-            self.set_search_keyword(command)
+            self.set_search_keyword(command, chat_id)
 
     def on_message(self, msg):
         content_type, chat_type, chat_id = telepot.glance2(msg)
@@ -85,7 +99,7 @@ class ClienHelper(telepot.helper.ChatHandler):
         if content_type is 'text':
             print(content_type, msg['text'])
             #self.handle_command(unicode(msg['text']))
-            self.handle_command(str(msg['text']))
+            self.handle_command(str(msg['text']), chat_id)
             return
     
     def stopmarketMonitor(self):
