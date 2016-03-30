@@ -1,3 +1,4 @@
+#-*- coding: utf-8 -*- 
 from bs4 import BeautifulSoup
 from urllib.request import Request,urlopen
 from urllib.parse import urljoin
@@ -8,6 +9,8 @@ import json
 import feedparser
 import codecs
 import MySQLdb
+import socket
+import struct
 
 # download pip
 # wget https://bootstrap.pypa.io/get-pip.py --no-check-certificate
@@ -18,14 +21,14 @@ import MySQLdb
 class MyHomeHelper(telepot.helper.ChatHandler):
     YES = '1. OK'
     NO = '2. NO'
-    MENU0 = '홈으로'
-    MENU1 = '1. 날씨'
+    MENU0 = '== 홈으로 =='
+    MENU1 = '== 날씨 =='
     MENU1_1 = '1. 저장된 지역'
     MENU1_2 = '2. 스케쥴 알림내역'
-    MENU2 = '2. Wake on Lan'
+    MENU2 = '== Wake on Lan =='
     MENU2_1 = '1. 서버 목록'
-    MENU2_2 = '1. 서버 등록'
-    MENU2_3 = '2. 서버 삭제'
+    MENU2_2 = '2. 서버 등록'
+    MENU2_3 = '3. 서버 삭제'
     your_searches = []
     monitoring_status = False
     navi = feedparser.FeedParserDict()
@@ -55,38 +58,237 @@ class MyHomeHelper(telepot.helper.ChatHandler):
         self.mode = current_mode 
 
     def register_location(self, command, chat_id):
-        print(command)
-        db = MySQLdb.connect("127.0.0.1","root","root","home_utils")
+        if command is self.MENU1_1:
+            self.mode=self.MENU1_1
+            self.location_menu(chat_id)
+            return
+        elif command is self.MENU1_2:
+            self.mode=self.MENU1_2
+            self.schedule_menu(chat_id)
+            return
+        elif command is self.MENU0:
+            self.menu()
+            return
+
+        db = MySQLdb.connect("127.0.0.1","root","root","home_utils",charset='utf8', use_unicode=True)
+        # because of latin1 encoding errors
+        db.query("set character_set_connection=utf8;")
+        db.query("set character_set_server=utf8;")
+        db.query("set character_set_client=utf8;")
+        db.query("set character_set_results=utf8;")
+        db.query("set character_set_database=utf8;")
+
         cursor = db.cursor()
 
-        sql = "INSERT INTO weather(chat_id,command) VALUES(%s, '%s')" % (chat_id,  command)
-        cursor.execute(sql)
+        sql = "INSERT INTO weather(chat_id,locations) VALUES(%s, '%s')" % (chat_id,  command)
+        #cursor.execute("set names utf8")
+        #cursor.execute(query.encode('utf8'))
+        cursor.execute(sql.encode('utf8'))
         # handle exception of duplicate data
 
         db.commit()
 
-        select_sql = "SELECT * FROM home_utils.command where chat_id = %d" % chat_id
-        cursor.execute(select_sql)
-        result = cursor.fetchall()
+        select_sql = "SELECT * FROM home_utils.weather where chat_id = %d" % chat_id
 
+        cursor.execute("set names utf8")
+        cursor.execute(select_sql.encode('utf8'))
+        cursor.fetchall()
+
+        # 튜플이 아닌 사전 형식으로 필드 가져오기
+        #cursor = db.cursor(MySQLdb.cursors.DictCursor)
+        result_locations = []
+        for row in cursor:
+            temp_list = []
+            temp_list.append(row[2])
+            result_locations.append(temp_list)
+            
+        cursor.close()
         db.close()
-        print(result)
-        self.show_weather(result)
 
+        result_locations.append([self.MENU1])
+        show_keyboard = {'keyboard': self.put_menu_button(result_locations)}
+        self.mode=self.MENU1_1
+        self.sender.sendMessage('아래에서 선택하세요.', reply_markup=show_keyboard)
+
+
+    def location_menu(self, chat_id):
+        db = MySQLdb.connect("127.0.0.1","root","root","home_utils",charset='utf8', use_unicode=True)
+        # because of latin1 encoding errors
+        db.query("set character_set_connection=utf8;")
+        db.query("set character_set_server=utf8;")
+        db.query("set character_set_client=utf8;")
+        db.query("set character_set_results=utf8;")
+        db.query("set character_set_database=utf8;")
+
+        cursor = db.cursor()
+
+        select_sql = "SELECT * FROM home_utils.weather where chat_id = %d" % chat_id
+
+        cursor.execute("set names utf8")
+        cursor.execute(select_sql.encode('utf8'))
+        cursor.fetchall()
+
+        result_locations = []
+        for row in cursor:
+            temp_list = []
+            temp_list.append(row[2])
+            result_locations.append(temp_list)
+
+        cursor.close()
+        db.close()
+
+        result_locations.append([self.MENU1])
+
+        show_keyboard = {'keyboard': self.put_menu_button(result_locations)}
+        self.sender.sendMessage('아래에서 선택하세요.', reply_markup=show_keyboard)
 
     def show_weather(self, location):
-        show_keyboard = {'keyboard': self.put_menu_button(location)}
-        self.sender.sendMessage('아래에서 선택하세요.', reply_markup=show_keyboard)
-        self.mode=self.MENU1_2
+        show_keyboard = {'keyboard': [[self.MENU2_1], [self.MENU2_2], [self.MENU2_3], [self.MENU0]]}
+        # show the weather of the location
+
 
     def wol_menu(self):
         show_keyboard = {'keyboard': [[self.MENU2_1], [self.MENU2_2], [self.MENU2_3], [self.MENU0]]}
         self.sender.sendMessage(self.WOL, reply_markup=show_keyboard)
         self.mode = self.MENU2
 
-    def answer(self, comment):
-        show_keyboard = {'keyboard': [[self.YES, self.NO], [self.MENU0]]}
-        self.sender.sendMessage(comment, reply_markup=show_keyboard)
+    def list_servers(self):
+        db = MySQLdb.connect("127.0.0.1","root","root","home_utils",charset='utf8', use_unicode=True)
+        # because of latin1 encoding errors
+        db.query("set character_set_connection=utf8;")
+        db.query("set character_set_server=utf8;")
+        db.query("set character_set_client=utf8;")
+        db.query("set character_set_results=utf8;")
+        db.query("set character_set_database=utf8;")
+
+        cursor = db.cursor()
+
+        select_sql = "SELECT * FROM home_utils.wol"
+
+        cursor.execute("set names utf8")
+        cursor.execute(select_sql.encode('utf8'))
+        cursor.fetchall()
+
+        result_servers = []
+        for row in cursor:
+            temp_list = []
+            temp_list.append(row[1] + ' ' + row[2])
+            result_servers.append(temp_list)
+
+        cursor.close()
+        db.close()
+
+        if not result_servers:
+            self.sender.sendMessage('현재 저장된 서버가 없습니다.')
+
+        result_servers.append([self.MENU2])
+
+        show_keyboard = {'keyboard': self.put_menu_button(result_servers)}
+        self.sender.sendMessage('아래에서 선택하세요.', reply_markup=show_keyboard)
+        self.mode = self.MENU2_1
+
+    def register_server_menu(self):
+        show_keyboard = {'keyboard': [[self.MENU2], [self.MENU0]]}
+        self.sender.sendMessage('서버를 등록해 주세요 ex) 데스크탑 aa:bb:cc:dd:ee:ff', reply_markup=show_keyboard)
+        self.mode = self.MENU2_2
+
+    def register_server(self, command, chat_id):
+        db = MySQLdb.connect("127.0.0.1","root","root","home_utils",charset='utf8', use_unicode=True)
+        # because of latin1 encoding errors
+        db.query("set character_set_connection=utf8;")
+        db.query("set character_set_server=utf8;")
+        db.query("set character_set_client=utf8;")
+        db.query("set character_set_results=utf8;")
+        db.query("set character_set_database=utf8;")
+
+        cursor = db.cursor()
+
+        server = command.split(' ')[0]
+        mac_address = command.split(' ')[1]
+        print(server, mac_address) 
+
+        sql = "INSERT INTO wol(host,mac) VALUES('%s', '%s')" % (server, mac_address)
+        cursor.execute(sql.encode('utf8'))
+        # handle exception of duplicate data
+
+        db.commit()
+
+        select_sql = "SELECT * FROM home_utils.wol"
+
+        cursor.execute("set names utf8")
+        cursor.execute(select_sql.encode('utf8'))
+        cursor.fetchall()
+
+        result_servers = []
+        for row in cursor:
+            temp_list = []
+            temp_list.append(row[1] + ' ' + row[2])
+            result_servers.append(temp_list)
+            
+        cursor.close()
+        db.close()
+
+        result_servers.append([self.MENU2])
+        show_keyboard = {'keyboard': self.put_menu_button(result_servers)}
+        self.mode=self.MENU2_1
+        self.sender.sendMessage('아래에서 선택하세요.', reply_markup=show_keyboard)
+
+    def wol_server(self, command):
+        server = command.split(' ')[0]
+        mac_address = command.split(' ')[1]
+
+        if len(mac_address) == 12:
+            pass
+        elif len(mac_address) == 12 + 5:
+            sep = mac_address[2]
+            mac_address = mac_address.replace(sep, '')
+        else:
+            self.sender.sendMessage('잘못된 Mac Address 형식입니다.', mac_address)
+            return
+     
+        print("mac_address:", mac_address)
+        
+        data = ''.join(['FFFFFFFFFFFF', mac_address * 20])
+        send_data = '' 
+
+        # Split up the hex values and pack.
+        for i in range(0, len(data), 2):
+           send_data = ''.join([send_data, struct.pack('B', int(data[i: i + 2], 16))])
+
+        # Broadcast it to the LAN.
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        sock.sendto(send_data, ('192.168.0.255', 7))
+
+    def wol_server2(self, command):
+        server = command.split(' ')[0]
+        mac_address = command.split(' ')[1]
+        broadcast = ['192.168.0.255']
+        wol_port = 9
+
+        add_oct = mac_address.split(':')
+        if len(add_oct) != 6:
+            self.sender.sendMessage('잘못된 Mac Address 형식입니다.', mac_address)
+            return
+        hwa = struct.pack('BBBBBB', int(add_oct[0],16),
+            int(add_oct[1],16),
+            int(add_oct[2],16),
+            int(add_oct[3],16),
+            int(add_oct[4],16),
+            int(add_oct[5],16))
+
+        # Build magic packet
+        msg = '\xff'.encode() * 6 + hwa * 16
+
+        # Send packet to broadcast address using UDP port 9
+        soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        soc.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST,1)
+        for i in broadcast:
+            soc.sendto(msg,(i,wol_port))
+        soc.close()
+
+    def check_mac_address(self, mac_addr):
+        return True
 
     def put_menu_button(self, l):
         menulist = [self.MENU0]
@@ -99,29 +301,35 @@ class MyHomeHelper(telepot.helper.ChatHandler):
         elif command == self.MENU1:
             self.weather_menu()
         elif command == self.MENU1_1:
-            self.set_mode(self.MENU1_1)
+            self.location_menu(chat_id)
         elif command == self.MENU1_2:
-            self.set_mode(self.MENU1_2)
+            self.schedule_menu(chat_id)
         elif command == self.MENU2:
             self.wol_menu()
         elif command == self.MENU2_1:
-            self.stop_marketMonitor()
+            self.list_servers()
         elif command == self.MENU2_2:
-            self.stop_marketMonitor()
+            self.register_server_menu()
         elif self.mode == self.MENU1:
             self.register_location(command, chat_id)
+        elif self.mode == self.MENU1_1:
+            self.show_weather(command, chat_id)
         elif self.mode == self.MENU1_2:
-            self.weather_menu(command, chat_id)
+            self.register_weather_schedule(command, chat_id)
+        elif self.mode == self.MENU2_1:
+            self.wol_server2(command)
+        elif self.mode == self.MENU2_2:
+            self.register_server(command, chat_id)
 
     def on_message(self, msg):
         content_type, chat_type, chat_id = telepot.glance2(msg)
 
         if not chat_id in VALID_USERS:
-            print("Permission Denied")
+            print("Permission Denied %s" % chat_id)
             return
 
         if content_type is 'text':
-            print(content_type, msg['text'])
+            print("recieving : ", msg['text'])
             #self.handle_command(unicode(msg['text']))
             self.handle_command(str(msg['text']), chat_id)
             return
