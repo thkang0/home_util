@@ -11,6 +11,9 @@ import codecs
 import MySQLdb
 import socket
 import struct
+import math
+from urllib.parse import urlencode, quote
+import xmltodict
 
 # download pip
 # wget https://bootstrap.pypa.io/get-pip.py --no-check-certificate
@@ -112,6 +115,7 @@ class MyHomeHelper(telepot.helper.ChatHandler):
 
 
     def location_menu(self, chat_id):
+        self.mode=self.MENU1_1
         db = MySQLdb.connect("127.0.0.1","root","root","home_utils",charset='utf8', use_unicode=True)
         # because of latin1 encoding errors
         db.query("set character_set_connection=utf8;")
@@ -142,10 +146,74 @@ class MyHomeHelper(telepot.helper.ChatHandler):
         show_keyboard = {'keyboard': self.put_menu_button(result_locations)}
         self.sender.sendMessage('아래에서 선택하세요.', reply_markup=show_keyboard)
 
+    def grid(self, v1, v2):
+        RE = 6371.00877 # 지구 반경(km)
+        GRID = 5.0      # 격자 간격(km)
+        SLAT1 = 30.0    # 투영 위도1(degree)
+        SLAT2 = 60.0    # 투영 위도2(degree)
+        OLON = 126.0    # 기준점 경도(degree)
+        OLAT = 38.0     # 기준점 위도(degree)
+        XO = 43         # 기준점 X좌표(GRID)
+        YO = 136        # 기1준점 Y좌표(GRID)
+
+        DEGRAD = math.pi / 180.0
+        RADDEG = 180.0 / math.pi
+
+        re = RE / GRID;
+        slat1 = SLAT1 * DEGRAD
+        slat2 = SLAT2 * DEGRAD
+        olon = OLON * DEGRAD
+        olat = OLAT * DEGRAD
+
+        sn = math.tan(math.pi * 0.25 + slat2 * 0.5) / math.tan(math.pi * 0.25 + slat1 * 0.5)
+        sn = math.log(math.cos(slat1) / math.cos(slat2)) / math.log(sn)
+        sf = math.tan(math.pi * 0.25 + slat1 * 0.5)
+        sf = math.pow(sf, sn) * math.cos(slat1) / sn
+        ro = math.tan(math.pi * 0.25 + olat * 0.5)
+        ro = re * sf / math.pow(ro, sn);
+        rs = {};
+
+        ra = math.tan(math.pi * 0.25 + (v1) * DEGRAD * 0.5)
+        ra = re * sf / math.pow(ra, sn)
+
+        theta = v2 * DEGRAD - olon
+        if theta > math.pi :
+            theta -= 2.0 * math.pi
+        if theta < -math.pi :
+            theta += 2.0 * math.pi
+        theta *= sn
+        rs['x'] = math.floor(ra * math.sin(theta) + XO + 0.5)
+        rs['y'] = math.floor(ro - ra * math.cos(theta) + YO + 0.5)
+
+        string = "http://www.kma.go.kr/wid/queryDFS.jsp?gridx={0}&gridy={1}".format(str(rs["x"]).split('.')[0], str(rs["y"]).split('.')[0])
+        return string
+
+    #get latitude and longitude
+    def getXY(self, location):
+        google_address = 'http://maps.googleapis.com/maps/api/geocode/json?sensor=false&language=ko&address='
+        address = google_address+quote(location, "euc-kr")
+        url_request = Request(address,headers={'User-Agent': 'Mozilla/5.0'})
+        llxy = urlopen(url_request).read()
+        js = json.loads(llxy.decode('utf8'))
+        for i in js['results']:
+            lng = i['geometry']['location']['lng']
+            lat = i['geometry']['location']['lat']
+        return self.grid(lat, lng)
+
+
     def show_weather(self, location):
         show_keyboard = {'keyboard': [[self.MENU2_1], [self.MENU2_2], [self.MENU2_3], [self.MENU0]]}
+        self.sender.sendMessage('해당 지역의 '+ location + ' 날씨입니다', reply_markup=show_keyboard)
         # show the weather of the location
-
+        print(location)
+        url = self.getXY(location)
+        url_request = Request(url,headers={'User-Agent': 'Mozilla/5.0'})
+        weather = urlopen(url_request).read()
+        data = xmltodict.parse(weather)
+        time = data['wid']['header']['tm']
+        temp = data['wid']['body']['data'][0]['temp']
+        current = time + ' ' + temp +'도 입니다'
+        self.sender.sendMessage(current, reply_markup=show_keyboard)
 
     def wol_menu(self):
         show_keyboard = {'keyboard': [[self.MENU2_1], [self.MENU2_2], [self.MENU2_3], [self.MENU0]]}
@@ -279,6 +347,7 @@ class MyHomeHelper(telepot.helper.ChatHandler):
 
         # Build magic packet
         msg = '\xff'.encode() * 6 + hwa * 16
+        print("sending magic packet !!")
 
         # Send packet to broadcast address using UDP port 9
         soc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -313,7 +382,7 @@ class MyHomeHelper(telepot.helper.ChatHandler):
         elif self.mode == self.MENU1:
             self.register_location(command, chat_id)
         elif self.mode == self.MENU1_1:
-            self.show_weather(command, chat_id)
+            self.show_weather(command)
         elif self.mode == self.MENU1_2:
             self.register_weather_schedule(command, chat_id)
         elif self.mode == self.MENU2_1:
