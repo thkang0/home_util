@@ -198,22 +198,81 @@ class MyHomeHelper(telepot.helper.ChatHandler):
         for i in js['results']:
             lng = i['geometry']['location']['lng']
             lat = i['geometry']['location']['lat']
+        #llxy.close()
         return self.grid(lat, lng)
 
 
     def show_weather(self, location):
-        show_keyboard = {'keyboard': [[self.MENU2_1], [self.MENU2_2], [self.MENU2_3], [self.MENU0]]}
-        self.sender.sendMessage('해당 지역의 '+ location + ' 날씨입니다', reply_markup=show_keyboard)
+        #show_keyboard = {'keyboard': [[self.MENU2_1], [self.MENU2_2], [self.MENU2_3], [self.MENU0]]}
+        #self.sender.sendMessage('해당 지역의 '+ location + ' 날씨입니다', reply_markup=show_keyboard)
+        self.sender.sendMessage(location + ' 날씨입니다')
         # show the weather of the location
         print(location)
         url = self.getXY(location)
         url_request = Request(url,headers={'User-Agent': 'Mozilla/5.0'})
         weather = urlopen(url_request).read()
         data = xmltodict.parse(weather)
-        time = data['wid']['header']['tm']
-        temp = data['wid']['body']['data'][0]['temp']
-        current = time + ' ' + temp +'도 입니다'
-        self.sender.sendMessage(current, reply_markup=show_keyboard)
+        #time = data['wid']['header']['tm']+"\n"
+        hour = data['wid']['body']['data'][0]['hour']
+        temp = "현재 기온 : " + data['wid']['body']['data'][0]['temp']+"도\n"
+        sky = "현재 날씨 : " + data['wid']['body']['data'][0]['wfKor']+"\n"
+        pop = "강수 확율 : " + data['wid']['body']['data'][0]['pop']+"%\n"
+        #print(data['wid']['body']['data'])
+        index = 0
+        current_index = 0
+        if hour == '21':
+            index = 4
+        elif hour == '24':
+            index = 3
+        elif hour == '3':
+            index = 2
+        elif hour == '6':
+            index = 1
+        elif hour == '9':
+            index = 8
+            current_index = 4
+        elif hour == '12':
+            index = 7
+            current_index = 3
+        elif hour == '15':
+            index = 6
+            current_index = 2
+        elif hour == '18':
+            index = 5
+            current_index = 1
+        print(hour, index)
+        #current = temp + sky+ pop
+        current = "금일 날씨는 \n" + hour + "시 기준 ==> " +  data['wid']['body']['data'][0]['temp']+"도, " + data['wid']['body']['data'][0]['wfKor'] \
+              + ", 강수확율은 " + data['wid']['body']['data'][0]['pop']+"%, 최대기온은 " + data['wid']['body']['data'][0]['tmx']+"도 \n"
+        inc = 1
+        for i in range(current_index):
+              next_time = int(hour)+ inc*3
+              current +=  str(next_time) + "시 기준 ==> "  +  data['wid']['body']['data'][inc]['temp']+"도, " + data['wid']['body']['data'][inc]['wfKor'] \
+              + ", 강수확율은 " + data['wid']['body']['data'][inc]['pop']+"%, 최대기온은 " + data['wid']['body']['data'][inc]['tmx']+"도 \n"
+              inc += 1
+        self.sender.sendMessage(current)
+        tomorrow_temp = "현재 기온 : " + data['wid']['body']['data'][index]['temp']+"도\n"
+        tomorrow_sky = "현재 날씨 : " + data['wid']['body']['data'][index]['wfKor']+"\n"
+        tomorrow_pop = "강수 확율 : " + data['wid']['body']['data'][index]['pop']+"%\n"
+        tomorrow_tmx = "최고 온도 : " + data['wid']['body']['data'][index]['tmx']+"도\n"
+        tomorrow_tmn = "최저 온도 : " + data['wid']['body']['data'][index]['tmn']+"도\n"
+        #tomorrow = "내일 오전(9시) 날씨는 \n" + tomorrow_temp + tomorrow_sky + tomorrow_pop + tomorrow_tmx + tomorrow_tmn
+        
+        tomorrow = "내일 날씨는 \n" + "오전 9시 ==> " +  data['wid']['body']['data'][index]['temp']+"도, " + data['wid']['body']['data'][index]['wfKor'] \
+              + ", 강수확율은 " + data['wid']['body']['data'][index]['pop']+"%, 최대 " + data['wid']['body']['data'][index]['tmx']+"도, 최저 " \
+              + data['wid']['body']['data'][index]['tmn']+"도 \n" \
+              + "오후 12시 ==> " +  data['wid']['body']['data'][index+1]['temp']+"도, " + data['wid']['body']['data'][index+1]['wfKor'] \
+              + ", 강수확율은 " + data['wid']['body']['data'][index+1]['pop']+"%, 최대 " + data['wid']['body']['data'][index+1]['tmx']+"도, 최저 " \
+              + data['wid']['body']['data'][index+1]['tmn']+"도 \n" \
+              + "오후 3시 ==> " +  data['wid']['body']['data'][index+2]['temp']+"도, " + data['wid']['body']['data'][index+2]['wfKor'] \
+              + ", 강수확율은 " + data['wid']['body']['data'][index+2]['pop']+"%, 최대 " + data['wid']['body']['data'][index+2]['tmx']+"도, 최저 " \
+              + data['wid']['body']['data'][index+2]['tmn']+"도 \n" \
+              + "오후 6시 ==> " +  data['wid']['body']['data'][index+3]['temp']+"도, " + data['wid']['body']['data'][index+3]['wfKor'] \
+              + ", 강수확율은 " + data['wid']['body']['data'][index+3]['pop']+"%, 최대 " + data['wid']['body']['data'][index+3]['tmx']+"도, 최저 " \
+              + data['wid']['body']['data'][index+3]['tmn']+"도 \n" \
+
+        self.sender.sendMessage(tomorrow)
+        #url_request.close()
 
     def wol_menu(self):
         show_keyboard = {'keyboard': [[self.MENU2_1], [self.MENU2_2], [self.MENU2_3], [self.MENU0]]}
